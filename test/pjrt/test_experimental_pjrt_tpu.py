@@ -30,6 +30,7 @@ class TestExperimentalPjrtTpu(parameterized.TestCase):
           'v2-8': 8,
           'v3-8': 8,
           'v4-8': 4,
+          'v5litepod-128': 128,
       }[self.accelerator_type]
     except requests.HTTPError as e:
       raise EnvironmentError(
