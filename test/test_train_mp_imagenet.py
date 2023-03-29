@@ -310,4 +310,5 @@ def _mp_fn(index, flags):
 
 
 if __name__ == '__main__':
-  xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  #xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
+  pjrt.spawn_threads(_mp_fn, args=(FLAGS,))
