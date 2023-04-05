@@ -15,7 +15,8 @@ def parse_common_options(datadir=None,
                          momentum=None,
                          target_accuracy=None,
                          profiler_port=9012,
-                         opts=None):
+                         opts=None,
+                         loader="torch_loader"):
   parser = argparse.ArgumentParser(add_help=False)
   parser.add_argument('--datadir', type=str, default=datadir)
   parser.add_argument('--logdir', type=str, default=logdir)
@@ -34,6 +35,7 @@ def parse_common_options(datadir=None,
   parser.add_argument('--metrics_debug', action='store_true')
   parser.add_argument('--async_closures', action='store_true')
   parser.add_argument('--debug', action='store_true')
+  parser.add_argument('--loader', type=str, default=loader)
   if opts:
     for name, aopts in opts:
       parser.add_argument(name, **aopts)

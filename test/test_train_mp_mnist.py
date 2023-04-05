@@ -20,6 +20,7 @@ FLAGS = args_parse.parse_common_options(
     opts=MODEL_OPTS.items(),
 )
 
+
 import os
 import shutil
 import sys
@@ -40,6 +41,61 @@ import torch_xla.test.test_utils as test_utils
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch_xla.distributed.xla_backend
+
+import os
+import ray
+import idx2numpy
+from ray.data.preprocessors import TorchVisionPreprocessor
+import numpy as np
+import pandas as pd
+
+def ray_dataset_MNIST(path, train, batch_size):
+    paths={}
+    for dirname, _, filenames in os.walk(path):
+        if train:
+            paths["images"] = os.path.join(dirname,"train-images-idx3-ubyte")
+            paths["labels"] = os.path.join(dirname,"train-labels-idx1-ubyte")    
+        else:
+            paths["images"] = os.path.join(dirname,"t10k-images-idx3-ubyte")
+            paths["labels"] = os.path.join(dirname,"t10k-labels-idx1-ubyte")  
+
+
+    def to_tensor(batch: np.ndarray) -> torch.Tensor:
+        tensor = torch.as_tensor(batch, dtype=torch.float)
+
+        # (B, H, W, C) -> (B, C, H, W)
+        #tensor = tensor.permute(0, 3, 1, 2).contiguous()
+        tensor = tensor.unsqueeze(0)
+        # [0., 255.] -> [0., 1.]
+        tensor = tensor.div(255)
+
+        return tensor
+
+    def pd_to_tensor(batch: np.ndarray) -> torch.Tensor:
+        tensor = torch.as_tensor(batch, dtype=torch.float)
+
+        # (B, H, W, C) -> (B, C, H, W)
+        #tensor = tensor.permute(0, 3, 1, 2).contiguous()
+        tensor = tensor.unsqueeze(0)
+        # [0., 255.] -> [0., 1.]
+        tensor = tensor.div(255)
+
+        return tensor
+    transform=transforms.Compose(
+            [transforms.Lambda(to_tensor),
+                transforms.Normalize((0.1307,), (0.3081,))])
+
+    arr = idx2numpy.convert_from_file(paths['images'])
+    arr_label = idx2numpy.convert_from_file(paths['labels'])
+    df = pd.DataFrame({'label': arr_label, 'images': list(arr)}, columns=['label', 'images'])
+    ds = ray.data.from_pandas(df)
+
+    # ds = ray.data.from_numpy(arr)
+    # labels = ray.data.from_numpy(arr_label)
+
+    preprocessor = TorchVisionPreprocessor(["images"], transform=transform)
+    ds = preprocessor.transform(ds)
+    return ds
 
 
 class MNIST(nn.Module):
@@ -96,7 +152,7 @@ def train_mnist(flags, **kwargs):
                           28), torch.zeros(flags.batch_size,
                                            dtype=torch.int64)),
         sample_count=10000 // flags.batch_size // xm.xrt_world_size())
-  else:
+  elif flags.loader=="torch_loader":
     train_dataset = datasets.MNIST(
         os.path.join(flags.datadir, str(xm.get_ordinal())),
         train=True,
@@ -131,6 +187,9 @@ def train_mnist(flags, **kwargs):
         drop_last=flags.drop_last,
         shuffle=False,
         num_workers=flags.num_workers)
+  else:
+    train_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=True, batch_size=32)
+    test_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=False, batch_size=32)
 
   # Scale learning rate to num cores
   lr = flags.lr * xm.xrt_world_size()
@@ -154,7 +213,18 @@ def train_mnist(flags, **kwargs):
   def train_loop_fn(loader, epoch):
     tracker = xm.RateTracker()
     model.train()
-    for step, (data, target) in enumerate(loader):
+    loader.random_shuffle()
+    device = xm.xla_device()
+    for step, batch in  enumerate(loader.iter_batches(batch_size=flags.batch_size)):
+    #for step, (data, target) in enumerate(loader):
+      data = torch.tensor(batch["images"])
+      target = torch.tensor(batch["label"])
+      data = xm.send_cpu_data_to_device(data, device)
+      data.to(device)
+
+      target = xm.send_cpu_data_to_device(target, device)
+      target.to(device)
+
       optimizer.zero_grad()
       output = model(data)
       loss = loss_fn(output, target)
@@ -174,7 +244,16 @@ def train_mnist(flags, **kwargs):
     total_samples = 0
     correct = 0
     model.eval()
-    for data, target in loader:
+    device = xm.xla_device()
+    for batch in loader.iter_batches(batch_size=flags.batch_size):
+      data = torch.tensor(batch["images"])
+      target = torch.tensor(batch["label"])
+      data = xm.send_cpu_data_to_device(data, device)
+      data.to(device)
+
+      target = xm.send_cpu_data_to_device(target, device)
+      target.to(device)     
+    #for data, target in loader:
       output = model(data)
       pred = output.max(1, keepdim=True)[1]
       correct += pred.eq(target.view_as(pred)).sum()
@@ -184,15 +263,15 @@ def train_mnist(flags, **kwargs):
     accuracy = xm.mesh_reduce('test_accuracy', accuracy, np.mean)
     return accuracy
 
-  train_device_loader = pl.MpDeviceLoader(train_loader, device)
-  test_device_loader = pl.MpDeviceLoader(test_loader, device)
+  #train_device_loader = pl.MpDeviceLoader(train_loader, device)
+  #test_device_loader = pl.MpDeviceLoader(test_loader, device)
   accuracy, max_accuracy = 0.0, 0.0
   for epoch in range(1, flags.num_epochs + 1):
     xm.master_print('Epoch {} train begin {}'.format(epoch, test_utils.now()))
-    train_loop_fn(train_device_loader, epoch)
+    train_loop_fn(train_loader, epoch)
     xm.master_print('Epoch {} train end {}'.format(epoch, test_utils.now()))
 
-    accuracy = test_loop_fn(test_device_loader)
+    accuracy = test_loop_fn(test_loader)
     xm.master_print('Epoch {} test end {}, Accuracy={:.2f}'.format(
         epoch, test_utils.now(), accuracy))
     max_accuracy = max(accuracy, max_accuracy)
@@ -221,4 +300,5 @@ def _mp_fn(index, flags):
 
 
 if __name__ == '__main__':
+  #_mp_fn(0, FLAGS)
   xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS.num_cores)
