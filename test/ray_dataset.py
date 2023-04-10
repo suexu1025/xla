@@ -5,6 +5,8 @@ from ray.data.preprocessors import TorchVisionPreprocessor
 import numpy as np
 import pandas as pd
 
+import torch
+
 def ray_dataset_MNIST(path, train, batch_size):
     paths={}
     for dirname, _, filenames in os.walk(path):
