@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 import torch
+from torchvision import datasets, transforms
 
 def ray_dataset_MNIST(path, train, batch_size):
     paths={}
