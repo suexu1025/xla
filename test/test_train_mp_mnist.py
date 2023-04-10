@@ -217,8 +217,8 @@ def train_mnist(flags, **kwargs):
     device = xm.xla_device()
     for step, batch in  enumerate(loader.iter_batches(batch_size=flags.batch_size)):
     #for step, (data, target) in enumerate(loader):
-      data = torch.tensor(batch["images"])
-      target = torch.tensor(batch["label"])
+      data = torch.tensor(np.array(batch["images"].to_list()))
+      target = torch.tensor(np.array(batch["label"].to_list()))
       data = xm.send_cpu_data_to_device(data, device)
       data.to(device)
 
