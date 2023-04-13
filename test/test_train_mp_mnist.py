@@ -209,7 +209,7 @@ def train_mnist(flags, **kwargs):
     total_samples = 0
     correct = 0
     model.eval()
-    device = xm.xla_device())
+    device = xm.xla_device()
     if flags.loader == "ray":
       loader = loader.iter_batches(batch_size=flags.batch_size)
     elif flags.loader == "tf_data":
