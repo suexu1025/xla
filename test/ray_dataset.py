@@ -60,4 +60,20 @@ def ray_dataset_MNIST(path, train, batch_size):
     ds = preprocessor.transform(ds)
     #ds = ds.map_batches(pd_to_tensor)
     #ds = ds.map_batches(Normalize) 
-    return ds
+    return ds.iter_batches(batch_size=128)
+
+if __name__ == '__main__':
+    import time
+    ds = ray_dataset_MNIST("/tmp/mnist-data/0/", train=True, batch_size=128)
+    epoch = 2
+    for idx in range(epoch):
+        #ds.random_shuffle()
+        tick = time.time()
+        for step, data in enumerate(ds):
+            #image = data["images"]
+            #label = data["label"]
+            image = torch.tensor(np.array(data["images"].to_list()))
+            label = torch.tensor(np.array(data["label"].to_list()))
+            print(image.sum())
+        toc = time.time() - tick
+        print("per peoch time is toc", toc)

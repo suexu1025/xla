@@ -43,7 +43,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch_xla.distributed.xla_backend
 
 from ray_dataset import ray_dataset_MNIST
-
+from tf_dataset import tfdata_MNIST
 
 class MNIST(nn.Module):
 
@@ -134,9 +134,12 @@ def train_mnist(flags, **kwargs):
         drop_last=flags.drop_last,
         shuffle=False,
         num_workers=flags.num_workers)
-  else:
-    train_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=True, batch_size=32)
-    test_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=False, batch_size=32)
+  elif flags.loader=="ray":
+    train_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=True, batch_size=flags.batch_size)
+    test_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=False, batch_size=flags.batch_size)
+  elif flags.loader == "tf_data":
+    train_loader = tfdata_MNIST(None, train = True, batch_size = flags.batch_size)
+    test_loader = tfdata_MNIST(None, train = False, batch_size = flags.batch_size)
 
   # Scale learning rate to num cores
   lr = flags.lr * xm.xrt_world_size()
@@ -192,15 +195,24 @@ def train_mnist(flags, **kwargs):
     correct = 0
     model.eval()
     device = xm.xla_device()
-    for batch in loader.iter_batches(batch_size=flags.batch_size):
-      data = torch.tensor(batch["images"])
-      target = torch.tensor(batch["label"])
-      data = xm.send_cpu_data_to_device(data, device)
-      data.to(device)
+    for batch in loader:
+      if flags.loader == "ray":
+        data = torch.tensor(batch["images"])
+        target = torch.tensor(batch["label"])
+        data = xm.send_cpu_data_to_device(data, device)
+        data.to(device)
 
-      target = xm.send_cpu_data_to_device(target, device)
-      target.to(device)     
-    #for data, target in loader:
+        target = xm.send_cpu_data_to_device(target, device)
+        target.to(device)  
+      elif flags.loader == "tf_data"
+        data, target = batch
+        data = xm.send_cpu_data_to_device(data, device)
+        data.to(device)
+
+        target = xm.send_cpu_data_to_device(target, device)
+        target.to(device)     
+      else:
+        data, target = batch
       output = model(data)
       pred = output.max(1, keepdim=True)[1]
       correct += pred.eq(target.view_as(pred)).sum()
