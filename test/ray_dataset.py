@@ -56,8 +56,8 @@ def ray_dataset_MNIST(path, train, batch_size):
     # ds = ray.data.from_numpy(arr)
     # labels = ray.data.from_numpy(arr_label)
 
-    #preprocessor = TorchVisionPreprocessor(["images"], transform=transform)
-    #ds = preprocessor.transform(ds)
-    ds.map_batches(to_tensor)
-    ds.map_batches(Normalize) 
+    preprocessor = TorchVisionPreprocessor(["images"], transform=transform)
+    ds = preprocessor.transform(ds)
+    #ds = ds.map_batches(pd_to_tensor)
+    #ds = ds.map_batches(Normalize) 
     return ds
