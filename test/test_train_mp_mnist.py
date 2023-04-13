@@ -43,7 +43,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch_xla.distributed.xla_backend
 
 from ray_dataset import ray_dataset_MNIST
-from tf_dataset import tfdata_MNIST
+from tf_data import tfdata_MNIST
 
 class MNIST(nn.Module):
 
