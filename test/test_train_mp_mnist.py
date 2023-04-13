@@ -163,7 +163,7 @@ def train_mnist(flags, **kwargs):
   def train_loop_fn(loader, epoch):
     tracker = xm.RateTracker()
     model.train()
-    loader.random_shuffle()
+    #loader.random_shuffle()
     device = xm.xla_device()
     for step, batch in enumerate(loader):
       if flags.loader == "ray":
