@@ -163,7 +163,7 @@ def train_mnist(flags, **kwargs):
   def train_loop_fn(loader, epoch):
     tracker = xm.RateTracker()
     model.train()
-    if loader is not "tf_data":
+    if loader != "tf_data":
       loader.random_shuffle()
     if flags.loader == "ray":
       loader = loader.iter_batches(batch_size=flags.batch_size)
@@ -217,8 +217,8 @@ def train_mnist(flags, **kwargs):
 
     for batch in loader:
       if flags.loader == "ray":
-        data = torch.tensor(batch["images"])
-        target = torch.tensor(batch["label"])
+        data = torch.tensor(np.array(batch["images"].to_list()))
+        target = torch.tensor(np.array(batch["label"].to_list()))
         data = xm.send_cpu_data_to_device(data, device)
         data.to(device)
 
