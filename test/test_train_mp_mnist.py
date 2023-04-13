@@ -165,15 +165,24 @@ def train_mnist(flags, **kwargs):
     model.train()
     loader.random_shuffle()
     device = xm.xla_device()
-    for step, batch in  enumerate(loader.iter_batches(batch_size=flags.batch_size)):
-    #for step, (data, target) in enumerate(loader):
-      data = torch.tensor(np.array(batch["images"].to_list()))
-      target = torch.tensor(np.array(batch["label"].to_list()))
-      data = xm.send_cpu_data_to_device(data, device)
-      data.to(device)
+    for step, batch in enumerate(loader):
+      if flags.loader == "ray":
+        data = torch.tensor(np.array(batch["images"].to_list()))
+        target = torch.tensor(np.array(batch["label"].to_list()))
+        data = xm.send_cpu_data_to_device(data, device)
+        data.to(device)
 
-      target = xm.send_cpu_data_to_device(target, device)
-      target.to(device)
+        target = xm.send_cpu_data_to_device(target, device)
+        target.to(device)  
+      elif flags.loader == "tf_data":
+        data, target = batch
+        data = xm.send_cpu_data_to_device(data, device)
+        data.to(device)
+
+        target = xm.send_cpu_data_to_device(target, device)
+        target.to(device)     
+      else:
+        data, target = batch
 
       optimizer.zero_grad()
       output = model(data)
