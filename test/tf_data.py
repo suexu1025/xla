@@ -48,7 +48,7 @@ def tfdata_MNIST(path, train, batch_size, epoch = 1):
     ds = ds.prefetch(10)
     ds.repeat(epoch)
     ds = TorchConvertDataLoader(ds)
-    return iter(ds)
+    return ds
 
 if __name__ == '__main__':
     epochs = 1
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     for idx in range(epochs):
         tic = time.time()
         total = 0
-        for step, _ in enumerate(ds):
+        for step, _ in enumerate(iter(ds)):
             image, label = _
             total = total + 1
             pass

@@ -163,7 +163,13 @@ def train_mnist(flags, **kwargs):
   def train_loop_fn(loader, epoch):
     tracker = xm.RateTracker()
     model.train()
-    #loader.random_shuffle()
+    if loader is not "tf_data":
+      loader.random_shuffle()
+    if flags.loader == "ray":
+      loader = loader.iter_batches(batch_size=flags.batch_size)
+    elif flags.loader == "tf_data":
+      loader = iter(loader)
+
     device = xm.xla_device()
     for step, batch in enumerate(loader):
       if flags.loader == "ray":
@@ -203,7 +209,12 @@ def train_mnist(flags, **kwargs):
     total_samples = 0
     correct = 0
     model.eval()
-    device = xm.xla_device()
+    device = xm.xla_device())
+    if flags.loader == "ray":
+      loader = loader.iter_batches(batch_size=flags.batch_size)
+    elif flags.loader == "tf_data":
+      loader = iter(loader)
+
     for batch in loader:
       if flags.loader == "ray":
         data = torch.tensor(batch["images"])

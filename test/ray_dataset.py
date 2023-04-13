@@ -60,7 +60,7 @@ def ray_dataset_MNIST(path, train, batch_size):
     ds = preprocessor.transform(ds)
     #ds = ds.map_batches(pd_to_tensor)
     #ds = ds.map_batches(Normalize) 
-    return ds.iter_batches(batch_size=128)
+    return ds
 
 if __name__ == '__main__':
     import time
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     for idx in range(epoch):
         #ds.random_shuffle()
         tick = time.time()
-        for step, data in enumerate(ds):
+        for step, data in enumerate(ds.iter_batches(batch_size=128)):
             #image = data["images"]
             #label = data["label"]
             image = torch.tensor(np.array(data["images"].to_list()))
