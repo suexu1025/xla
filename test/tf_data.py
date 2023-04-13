@@ -29,7 +29,7 @@ def scale(image, label):
     image = (image - mean)/std
     return image, label
 
-def tfdata_MNIST(path, train, batch_size, epoch):
+def tfdata_MNIST(path, train, batch_size, epoch = 1):
     if path is None:
         ds_builder = tfds.builder('mnist')
         ds_builder.download_and_prepare()
