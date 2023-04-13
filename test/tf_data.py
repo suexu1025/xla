@@ -23,6 +23,8 @@ class TorchConvertDataLoader:
 
 def scale(image, label):
     image = tf.cast(image, tf.float32)
+    image = tf.expand_dims(
+    image, axis = 0)
     image /= 255
     mean = 0.1307
     std = 0.3081
