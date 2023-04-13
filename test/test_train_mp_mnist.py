@@ -204,7 +204,7 @@ def train_mnist(flags, **kwargs):
 
         target = xm.send_cpu_data_to_device(target, device)
         target.to(device)  
-      elif flags.loader == "tf_data"
+      elif flags.loader == "tf_data":
         data, target = batch
         data = xm.send_cpu_data_to_device(data, device)
         data.to(device)
