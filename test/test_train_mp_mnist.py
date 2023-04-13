@@ -138,8 +138,8 @@ def train_mnist(flags, **kwargs):
     train_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=True, batch_size=flags.batch_size)
     test_loader = ray_dataset_MNIST(os.path.join("/tmp/mnist-data/", str(xm.get_ordinal())), train=False, batch_size=flags.batch_size)
   elif flags.loader == "tf_data":
-    train_loader = tfdata_MNIST(None, train = True, batch_size = flags.batch_size, epoch = flags.epochs)
-    test_loader = tfdata_MNIST(None, train = False, batch_size = flags.batch_size, epoch = flags.epochs)
+    train_loader = tfdata_MNIST(None, train = True, batch_size = flags.batch_size, epoch = flags.num_epochs)
+    test_loader = tfdata_MNIST(None, train = False, batch_size = flags.batch_size, epoch = flags.num_epochs)
 
   # Scale learning rate to num cores
   lr = flags.lr * xm.xrt_world_size()
